@@ -16,6 +16,7 @@ const MAX_OFFSET: u64 = 1 << (MAX_DEPTH + 1);
 
 impl SearchSpace for BinaryTree {
     type State = u64;
+    type StateUniqueId = Self::State;
     type Action = Dir;
     type Iterator = IntoIter<(Self::Action, Self::State)>;
 

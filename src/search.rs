@@ -1,26 +1,22 @@
 use std::iter::Iterator;
 use std::collections::HashSet;
-use std::marker::PhantomData;
-use std::hash::{Hash, Hasher};
+use std::collections::hash_state::DefaultState;
+use std::hash::Hash;
 use fnv::FnvHasher;
 
-struct Visited<T> {
-    hash_set: HashSet<u64>,
-    phantom: PhantomData<T>,
+struct Visited<U> {
+    hash_set: HashSet<U, DefaultState<FnvHasher>>
 }
 
-impl<T> Visited<T> where T: Hash {
-    fn new() -> Visited<T> {
+impl<U> Visited<U> where U: Hash + Eq {
+    fn new() -> Visited<U> {
         Visited {
-            hash_set: HashSet::new(),
-            phantom: PhantomData,
+            hash_set: Default::default()
         }
     }
 
-    fn insert(&mut self, value: &T) -> bool {
-        let mut hasher = FnvHasher::default();
-        value.hash(&mut hasher);
-        self.hash_set.insert(hasher.finish())
+    fn insert<T>(&mut self, value: &T) -> bool where T: UniqueId<U> {
+        self.hash_set.insert(value.unique_id())
     }
 }
 
@@ -34,8 +30,19 @@ impl<T> SearchGoal<T> for T where T: PartialEq {
     }
 }
 
+pub trait UniqueId<U> where U: Hash + Eq {
+    fn unique_id(&self) -> U;
+}
+
+impl<U> UniqueId<U> for U where U: Hash + Eq + Clone {
+    fn unique_id(&self) -> U  {
+        self.clone()
+    }
+}
+
 pub trait SearchSpace {
-    type State: Hash;
+    type StateUniqueId: Hash + Eq;
+    type State: UniqueId<Self::StateUniqueId>;
     type Action;
     type Iterator: Iterator<Item=(Self::Action, Self::State)>;
 
@@ -101,6 +108,7 @@ pub mod tests {
 
         impl SearchSpace for TestSearch {
             type State = i32;
+            type StateUniqueId = Self::State;
             type Action = Dir;
             type Iterator = IntoIter<(Self::Action, Self::State)>;
 
