@@ -41,42 +41,35 @@ pub trait SearchSpace {
             return Some(vec![]);
         }
 
-        let mut path = Vec::new();
         let mut visited = Visited::new();
-        let mut frontier = vec![self.expand(&start)];
+        let mut frontier = vec![];
+        let mut possibilities = self.expand(&start);
 
         loop {
-            let result = match frontier.last_mut() {
+            match possibilities.next() {
                 None => {
-                    return None
+                    match frontier.pop() {
+                        None => return None,
+                        Some((_, past_possibilities)) => possibilities = past_possibilities
+                    };
                 },
-                Some(&mut ref mut iter) => {
-                    match iter.next() {
-                        None => {
-                            path.pop();
-                            None
-                        },
-                        Some((action, state)) => {
-                            if !visited.insert(&state) {
-                                continue;
-                            }
-                            path.push(action);
-                            if goal.is_goal(&state) {
-                                return Some(path);
-                            }
-                            Some(self.expand(&state))
-                        }
+                Some((action, state)) => {
+                    if !visited.insert(&state) {
+                        continue;
                     }
+                    if goal.is_goal(&state) {
+                        let mut path = frontier
+                            .into_iter()
+                            .map(|(action, _)| action)
+                            .collect::<Vec<Self::Action>>();
+                        path.push(action);
+                        return Some(path);
+                    }
+
+                    frontier.push((action, possibilities));
+                    possibilities = self.expand(&state);
                 }
-            };
-            match result {
-                None => {
-                    frontier.pop();
-                }
-                Some(iter) => {
-                    frontier.push(iter);
-                }
-            };
+            }
         }
     }
 }
