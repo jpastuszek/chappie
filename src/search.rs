@@ -51,12 +51,12 @@ pub trait SearchSpace {
                     continue;
                 }
                 if goal.is_goal(&state) {
-                    let mut path = stack
-                        .into_iter()
-                        .map(|(_, action)| action)
-                        .collect::<Vec<Self::Action>>();
-                    path.push(action);
-                    return Some(path);
+                    return Some(
+                        stack.into_iter()
+                            .map(|(_, action)| action)
+                            .chain(Some(action).into_iter())
+                            .collect::<Vec<Self::Action>>()
+                    )
                 }
 
                 stack.push((actions, action));
