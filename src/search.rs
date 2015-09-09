@@ -42,33 +42,30 @@ pub trait SearchSpace {
         }
 
         let mut visited = Visited::new();
-        let mut frontier = vec![];
-        let mut remaining_actions = self.expand(&start);
+        let mut stack = vec![];
+        let mut actions = self.expand(&start);
 
         loop {
-            match remaining_actions.next() {
-                Some((action, state)) => {
-                    if !visited.insert(&state) {
-                        continue;
-                    }
-                    if goal.is_goal(&state) {
-                        let mut path = frontier
-                            .into_iter()
-                            .map(|(action, _)| action)
-                            .collect::<Vec<Self::Action>>();
-                        path.push(action);
-                        return Some(path);
-                    }
-
-                    frontier.push((action, remaining_actions));
-                    remaining_actions = self.expand(&state);
-                },
-                None => {
-                    match frontier.pop() {
-                        Some((_, actions)) => remaining_actions = actions,
-                        None => return None
-                    };
+            if let Some((action, state)) = actions.next() {
+                if !visited.insert(&state) {
+                    continue;
                 }
+                if goal.is_goal(&state) {
+                    let mut path = stack
+                        .into_iter()
+                        .map(|(_, action)| action)
+                        .collect::<Vec<Self::Action>>();
+                    path.push(action);
+                    return Some(path);
+                }
+
+                stack.push((actions, action));
+                actions = self.expand(&state);
+            } else {
+                match stack.pop() {
+                    Some((remaining_actions, _)) => actions = remaining_actions,
+                    None => return None
+                };
             }
         }
     }
