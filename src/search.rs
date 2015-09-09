@@ -55,7 +55,7 @@ pub trait SearchSpace {
                         stack.into_iter()
                             .map(|(_, action)| action)
                             .chain(Some(action).into_iter())
-                            .collect::<Vec<Self::Action>>()
+                            .collect()
                     )
                 }
 
