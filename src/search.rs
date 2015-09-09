@@ -43,16 +43,10 @@ pub trait SearchSpace {
 
         let mut visited = Visited::new();
         let mut frontier = vec![];
-        let mut possibilities = self.expand(&start);
+        let mut remaining_actions = self.expand(&start);
 
         loop {
-            match possibilities.next() {
-                None => {
-                    match frontier.pop() {
-                        None => return None,
-                        Some((_, past_possibilities)) => possibilities = past_possibilities
-                    };
-                },
+            match remaining_actions.next() {
                 Some((action, state)) => {
                     if !visited.insert(&state) {
                         continue;
@@ -66,8 +60,14 @@ pub trait SearchSpace {
                         return Some(path);
                     }
 
-                    frontier.push((action, possibilities));
-                    possibilities = self.expand(&state);
+                    frontier.push((action, remaining_actions));
+                    remaining_actions = self.expand(&state);
+                },
+                None => {
+                    match frontier.pop() {
+                        Some((_, actions)) => remaining_actions = actions,
+                        None => return None
+                    };
                 }
             }
         }
