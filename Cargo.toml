@@ -9,3 +9,10 @@ homepage = "https://github.com/aldanor/chappie"
 
 [dependencies]
 fnv = "*"
+
+[profile.bench]
+opt-level = 3
+#debug = true # for profiling
+debug-assertions = false
+codegen-units = 1
+
