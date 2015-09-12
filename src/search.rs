@@ -72,6 +72,9 @@ pub trait SearchSpace {
 #[cfg(test)]
 pub mod tests {
     use std::vec::IntoIter;
+    use std::fmt;
+    use rand::chacha::ChaChaRng;
+    use rand::Rng;
     use super::SearchSpace;
 
     #[test]
@@ -106,5 +109,47 @@ pub mod tests {
         assert_eq!(ts.dfs(2, 2).unwrap(), vec![]);
         assert!(ts.dfs(2, 0).is_none());
         assert!(ts.dfs(5, 0).is_none());
+    }
+
+    #[test]
+    pub fn test_dfs_random() {
+        struct RandomTree {
+            nodes: Vec<Vec<usize>>
+        };
+
+        impl fmt::Display for RandomTree {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                try!(writeln!(f, "{}", "digraph x {"));
+                try!(writeln!(f, "{}",
+                         self.nodes.iter()
+                         .enumerate()
+                         .flat_map(|(node_no, ref edges)| edges.iter().zip(Some(node_no).into_iter().cycle()))
+                         .map(|(&edge, node_no)| format!("\t{} -> {}", node_no, edge))
+                         .collect::<Vec<_>>()
+                         .join("\n")
+                        ));
+                writeln!(f, "{}", "}")
+            }
+        }
+
+        impl RandomTree {
+            fn new(nodes_no: usize, max_edges: usize) -> RandomTree {
+                let mut rng = ChaChaRng::new_unseeded();
+                let mut rng2 = ChaChaRng::new_unseeded();
+
+                assert!(max_edges < nodes_no);
+
+                RandomTree {
+                    nodes: (0..nodes_no).into_iter().map(|_|
+                        rng.gen_iter::<usize>()
+                        .map(|rand| rand % nodes_no)
+                        .take(rng2.gen_range(0, max_edges - 1))
+                        .collect()
+                    ).collect()
+                }
+            }
+        }
+
+        println!("{}", RandomTree::new(24, 6))
     }
 }
