@@ -122,8 +122,8 @@ pub mod tests {
                 try!(writeln!(f, "{}", "digraph x {"));
                 try!(writeln!(f, "{}",
                          self.nodes.iter()
-                         .enumerate()
-                         .flat_map(|(node_no, ref edges)| edges.iter().zip(Some(node_no).into_iter().cycle()))
+                         .zip(0..)
+                         .flat_map(|(ref edges, node_no)| edges.iter().zip(Some(node_no).into_iter().cycle()))
                          .map(|(&edge, node_no)| format!("\t{} -> {}", node_no, edge))
                          .collect::<Vec<_>>()
                          .join("\n")
@@ -137,19 +137,47 @@ pub mod tests {
                 let mut rng = ChaChaRng::new_unseeded();
                 let mut rng2 = ChaChaRng::new_unseeded();
 
+                let mut nodes = (0..nodes_no).collect::<Vec<usize>>();
+                rng.shuffle(&mut nodes[..]);
+
                 assert!(max_edges < nodes_no);
 
                 RandomTree {
-                    nodes: (0..nodes_no).into_iter().map(|_|
+                    nodes: nodes.into_iter().map(|_|
                         rng.gen_iter::<usize>()
                         .map(|rand| rand % nodes_no)
-                        .take(rng2.gen_range(0, max_edges - 1))
+                        .take(rng2.gen_range(1, max_edges - 1))
                         .collect()
                     ).collect()
                 }
             }
         }
 
-        println!("{}", RandomTree::new(24, 6))
+        impl SearchSpace for RandomTree {
+            type State = usize;
+            type Action = usize;
+            type Iterator = IntoIter<(Self::Action, Self::State)>;
+
+            fn expand(&self, state: &Self::State) -> Self::Iterator {
+                //println!("state: {}", state);
+                self.nodes[*state].clone().into_iter()
+                    .enumerate()
+                    .map(|(action, node)|
+                         (action, node)
+                     )
+                    //.inspect(|&(action, node)|
+                        //println!("{} -> {}", action, node)
+                    //)
+                    .collect::<Vec<(usize, usize)>>().into_iter()
+            }
+        }
+
+        let rt = RandomTree::new(24, 6);
+        //println!("{}", rt);
+        assert_eq!(rt.dfs(0, 0).unwrap(), vec![]);
+        assert!(rt.dfs(0, 4).is_none());
+        assert_eq!(rt.dfs(1, 4).unwrap(), vec![3]);
+        assert_eq!(rt.dfs(1, 4).unwrap(), vec![3]);
+        assert_eq!(rt.dfs(6, 13).unwrap(), vec![1, 0, 0, 0, 1, 0, 1, 0, 0]);
     }
 }
