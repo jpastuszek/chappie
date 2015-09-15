@@ -31,7 +31,7 @@ impl<T> SearchGoal<T> for T where T: PartialEq {
 }
 
 pub trait SearchSpace {
-    type State: Hash + Clone + Eq;
+    type State: Hash + ToOwned<Owned=Self::State> + Eq;
     type Action;
     type Iterator: Iterator<Item=(Self::Action, Self::State)>;
 
@@ -39,7 +39,7 @@ pub trait SearchSpace {
 
     fn dfs<S, G>(&self, start: S, goal: &G) -> Option<Vec<Self::Action>>
     where
-        S: Borrow<Self::State> + ToOwned<Owned=S>,
+        S: Borrow<Self::State>,
         G: SearchGoal<Self::State>
     {
         if goal.is_goal(start.borrow()) {
@@ -154,7 +154,7 @@ pub mod tests {
     }
 
     #[test]
-    pub fn test_dfs_simple() {
+    pub fn test_dfs_simple_state_by_val() {
         struct TestSearch;
 
         #[derive(Debug, PartialEq)]
@@ -188,7 +188,7 @@ pub mod tests {
     }
 
     #[test]
-    pub fn test_dfs_simple_by_ref() {
+    pub fn test_dfs_simple_state_by_ref() {
         struct TestSearch;
 
         #[derive(Debug, PartialEq)]
