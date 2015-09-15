@@ -1,20 +1,22 @@
 use std::iter::Iterator;
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::borrow::ToOwned;
+use std::borrow::Borrow;
 
 struct Visited<T> {
     hash_set: HashSet<T>
 }
 
-impl<T> Visited<T> where T: Hash + Clone + Eq {
+impl<T> Visited<T> where T: Hash + Eq {
     fn new() -> Visited<T> {
         Visited {
             hash_set: HashSet::new()
         }
     }
 
-    fn insert(&mut self, value: &T) -> bool {
-        self.hash_set.insert(value.clone())
+    fn insert(&mut self, value: T) -> bool {
+        self.hash_set.insert(value)
     }
 }
 
@@ -35,14 +37,17 @@ pub trait SearchSpace {
 
     fn expand(&self, state: &Self::State) -> Self::Iterator;
 
-    fn dfs<G>(&self, start: &Self::State, goal: &G) -> Option<Vec<Self::Action>>
-    where G: SearchGoal<Self::State> {
-        if goal.is_goal(start) {
+    fn dfs<S, G>(&self, start: S, goal: &G) -> Option<Vec<Self::Action>>
+    where
+        S: Borrow<Self::State> + ToOwned<Owned=S>,
+        G: SearchGoal<Self::State>
+    {
+        if goal.is_goal(start.borrow()) {
             return Some(vec![]);
         }
 
         let mut visited = Visited::new();
-        let mut stack = vec![(self.expand(start), None)];
+        let mut stack = vec![(self.expand(start.borrow()), None)];
 
         loop {
             let next = match stack.last_mut() {
@@ -50,10 +55,10 @@ pub trait SearchSpace {
                 Some(&mut (ref mut iter, _)) => iter.next()
             };
             if let Some((action, state)) = next {
-                if !visited.insert(&state) {
+                if !visited.insert(state.borrow().to_owned()) {
                     continue;
                 }
-                if goal.is_goal(&state) {
+                if goal.is_goal(state.borrow()) {
                     return Some(
                         stack.into_iter()
                              .filter_map(|(_, a)| a)
@@ -61,7 +66,7 @@ pub trait SearchSpace {
                              .collect()
                     )
                 }
-                stack.push((self.expand(&state), Some(action)));
+                stack.push((self.expand(state.borrow()), Some(action)));
             } else {
                 stack.pop();
             }
@@ -150,6 +155,40 @@ pub mod tests {
 
     #[test]
     pub fn test_dfs_simple() {
+        struct TestSearch;
+
+        #[derive(Debug, PartialEq)]
+        enum Dir { Left, Right }
+
+        impl SearchSpace for TestSearch {
+            type State = i32;
+            type Action = Dir;
+            type Iterator = IntoIter<(Self::Action, Self::State)>;
+
+            fn expand(&self, state: &Self::State) -> Self::Iterator {
+                match *state {
+                    0 => vec![(Dir::Left, 1), (Dir::Right, 2)],
+                    1 => vec![(Dir::Left, 3), (Dir::Right, 4)],
+                    2 => vec![(Dir::Left, 2)],
+                    _ => vec![]
+                }.into_iter()
+            }
+        }
+
+        let ts = TestSearch;
+
+        assert_eq!(ts.dfs(0, &0).unwrap(), vec![]);
+        assert_eq!(ts.dfs(0, &1).unwrap(), vec![Dir::Left]);
+        assert_eq!(ts.dfs(0, &2).unwrap(), vec![Dir::Right]);
+        assert_eq!(ts.dfs(0, &3).unwrap(), vec![Dir::Left, Dir::Left]);
+        assert_eq!(ts.dfs(0, &4).unwrap(), vec![Dir::Left, Dir::Right]);
+        assert_eq!(ts.dfs(2, &2).unwrap(), vec![]);
+        assert!(ts.dfs(2, &0).is_none());
+        assert!(ts.dfs(5, &0).is_none());
+    }
+
+    #[test]
+    pub fn test_dfs_simple_by_ref() {
         struct TestSearch;
 
         #[derive(Debug, PartialEq)]
