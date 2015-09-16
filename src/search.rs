@@ -48,7 +48,7 @@ pub trait SearchSpace {
         S: Borrow<Self::State>,
         G: SearchGoal<Self::State>
     {
-        if goal.borrow().is_goal(start.borrow()) {
+        if goal.is_goal(start.borrow()) {
             return Some(vec![]);
         }
 
@@ -64,7 +64,7 @@ pub trait SearchSpace {
                 if !visited.insert(state.to_owned()) {
                     continue;
                 }
-                if goal.borrow().is_goal(state.borrow()) {
+                if goal.is_goal(state.borrow()) {
                     return Some(
                         stack.into_iter()
                              .filter_map(|(_, a)| a)
