@@ -30,6 +30,12 @@ impl<T> SearchGoal<T> for T where T: PartialEq {
     }
 }
 
+impl<'a, T> SearchGoal<T> for &'a T where T: PartialEq {
+    fn is_goal(&self, state: &T) -> bool {
+        (*self) == state
+    }
+}
+
 pub trait SearchSpace {
     type State: Hash + ToOwned<Owned=Self::State> + Eq;
     type Action;
@@ -37,12 +43,12 @@ pub trait SearchSpace {
 
     fn expand(&self, state: &Self::State) -> Self::Iterator;
 
-    fn dfs<S, G>(&self, start: S, goal: &G) -> Option<Vec<Self::Action>>
+    fn dfs<S, G>(&self, start: S, goal: G) -> Option<Vec<Self::Action>>
     where
         S: Borrow<Self::State>,
         G: SearchGoal<Self::State>
     {
-        if goal.is_goal(start.borrow()) {
+        if goal.borrow().is_goal(start.borrow()) {
             return Some(vec![]);
         }
 
@@ -58,7 +64,7 @@ pub trait SearchSpace {
                 if !visited.insert(state.to_owned()) {
                     continue;
                 }
-                if goal.is_goal(state.borrow()) {
+                if goal.borrow().is_goal(state.borrow()) {
                     return Some(
                         stack.into_iter()
                              .filter_map(|(_, a)| a)
@@ -146,7 +152,7 @@ pub mod tests {
         }
     }
 
-    impl<T> SearchGoal<T> for Observer<T> where T: PartialEq + Clone {
+    impl<'a, T> SearchGoal<T> for &'a Observer<T> where T: PartialEq + Clone {
         fn is_goal(&self, state: &T) -> bool {
             self.visited.borrow_mut().push(state.clone());
             self.goal == *state
@@ -177,14 +183,14 @@ pub mod tests {
 
         let ts = TestSearch;
 
-        assert_eq!(ts.dfs(0, &0).unwrap(), vec![]);
-        assert_eq!(ts.dfs(0, &1).unwrap(), vec![Dir::Left]);
-        assert_eq!(ts.dfs(0, &2).unwrap(), vec![Dir::Right]);
-        assert_eq!(ts.dfs(0, &3).unwrap(), vec![Dir::Left, Dir::Left]);
-        assert_eq!(ts.dfs(0, &4).unwrap(), vec![Dir::Left, Dir::Right]);
-        assert_eq!(ts.dfs(2, &2).unwrap(), vec![]);
-        assert!(ts.dfs(2, &0).is_none());
-        assert!(ts.dfs(5, &0).is_none());
+        assert_eq!(ts.dfs(0, 0).unwrap(), vec![]);
+        assert_eq!(ts.dfs(0, 1).unwrap(), vec![Dir::Left]);
+        assert_eq!(ts.dfs(0, 2).unwrap(), vec![Dir::Right]);
+        assert_eq!(ts.dfs(0, 3).unwrap(), vec![Dir::Left, Dir::Left]);
+        assert_eq!(ts.dfs(0, 4).unwrap(), vec![Dir::Left, Dir::Right]);
+        assert_eq!(ts.dfs(2, 2).unwrap(), vec![]);
+        assert!(ts.dfs(2, 0).is_none());
+        assert!(ts.dfs(5, 0).is_none());
     }
 
     #[test]
@@ -243,7 +249,7 @@ pub mod tests {
                 } else {
                     let visited: HashSet<_> = observer.visited().iter().cloned().collect();
                     for state in observer.visited() {
-                        assert!(!observer.is_goal(&state));
+                        assert!(!(&observer).is_goal(&state));
                         for (_, next_state) in g.expand(&state) {
                             assert!(visited.contains(&next_state));
                         }
