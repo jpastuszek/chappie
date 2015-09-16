@@ -55,7 +55,7 @@ pub trait SearchSpace {
                 Some(&mut (ref mut iter, _)) => iter.next()
             };
             if let Some((action, state)) = next {
-                if !visited.insert(state.borrow().to_owned()) {
+                if !visited.insert(state.to_owned()) {
                     continue;
                 }
                 if goal.is_goal(state.borrow()) {
