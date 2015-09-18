@@ -6,15 +6,15 @@ struct Visited<T> {
     hash_set: HashSet<T>
 }
 
-impl<T> Visited<T> where T: Hash + Clone + Eq {
+impl<T> Visited<T> where T: Hash + Eq {
     fn new() -> Visited<T> {
         Visited {
             hash_set: HashSet::new()
         }
     }
 
-    fn insert(&mut self, value: &T) -> bool {
-        self.hash_set.insert(value.clone())
+    fn insert(&mut self, value: T) -> bool {
+        self.hash_set.insert(value)
     }
 }
 
@@ -29,7 +29,7 @@ impl<T> SearchGoal<T> for T where T: PartialEq {
 }
 
 pub trait SearchSpace {
-    type State: Hash + Clone + Eq;
+    type State: Hash + Eq;
     type Action;
 
     fn expand<'b>(&'b self, state: &Self::State) -> Box<Iterator<Item=(&Self::Action, &Self::State)> + 'b>;
@@ -41,7 +41,7 @@ pub trait SearchSpace {
         }
 
         let mut visited = Visited::new();
-        let mut stack = vec![(self.expand::<'a>(start), None)];
+        let mut stack = vec![(self.expand(start), None)];
 
         loop {
             let next = match stack.last_mut() {
@@ -49,10 +49,10 @@ pub trait SearchSpace {
                 Some(&mut (ref mut iter, _)) => iter.next()
             };
             if let Some((action, state)) = next {
-                if !visited.insert(&state) {
+                if !visited.insert(state) {
                     continue;
                 }
-                if goal.is_goal(&state) {
+                if goal.is_goal(state) {
                     return Some(
                         stack.into_iter()
                              .filter_map(|(_, a)| a)
@@ -60,7 +60,7 @@ pub trait SearchSpace {
                              .collect()
                     )
                 }
-                stack.push((self.expand(&state), Some(action)));
+                stack.push((self.expand(state), Some(action)));
             } else {
                 stack.pop();
             }
