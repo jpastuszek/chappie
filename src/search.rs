@@ -205,20 +205,13 @@ pub mod tests {
             }
         }
 
-        /*
-         *          0
-         *      1       2
-         *    3   4
-         *
-         */
         let ts = TestSearch {
             nodes: vec![
                 vec![(Dir::Left, 1), (Dir::Right, 2)],  // 0
                 vec![(Dir::Left, 3), (Dir::Right, 4)],  // 1
                 vec![(Dir::Left, 2)],                   // 2
                 vec![],                                 // 3
-                vec![],                                 // 4
-                vec![]                                  // 5
+                vec![]                                  // 4
             ]
         };
 
@@ -229,7 +222,6 @@ pub mod tests {
         assert_eq!(ts.dfs(&0, &4).unwrap(), vec![&Dir::Left, &Dir::Right]);
         assert_eq!(ts.dfs(&2, &2).unwrap(), Vec::<&Dir>::new());
         assert!(ts.dfs(&2, &0).is_none());
-        assert!(ts.dfs(&5, &0).is_none());
     }
 
 /*
