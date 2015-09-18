@@ -1,6 +1,8 @@
 use std::iter::Iterator;
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::borrow::Borrow;
+
 
 struct Visited<T> {
     hash_set: HashSet<T>
@@ -28,20 +30,23 @@ impl<T> SearchGoal<T> for T where T: PartialEq {
     }
 }
 
-pub trait SearchSpace {
-    type State: Hash + Eq;
+pub trait SearchSpace<'a> {
+    type State;
     type Action;
 
-    fn expand<'b>(&'b self, state: &Self::State) -> Box<Iterator<Item=(&Self::Action, &Self::State)> + 'b>;
+    type BState: Borrow<Self::State> + Hash + Eq;
+    type BAction: Borrow<Self::Action>;
 
-    fn dfs<G>(&self, start: &Self::State, goal: &G) -> Option<Vec<&Self::Action>>
+    fn expand(&'a self, state: &Self::State) -> Box<Iterator<Item=(Self::BAction, Self::BState)> + 'a>;
+
+    fn dfs<G>(&'a self, start: Self::BState, goal: &G) -> Option<Vec<Self::BAction>>
     where G: SearchGoal<Self::State> {
-        if goal.is_goal(start) {
+        if goal.is_goal(start.borrow()) {
             return Some(vec![]);
         }
 
-        let mut visited = Visited::new();
-        let mut stack = vec![(self.expand(start), None)];
+        //let mut visited = Visited::new();
+        let mut stack = vec![(self.expand(start.borrow()), None)];
 
         loop {
             let next = match stack.last_mut() {
@@ -49,10 +54,10 @@ pub trait SearchSpace {
                 Some(&mut (ref mut iter, _)) => iter.next()
             };
             if let Some((action, state)) = next {
-                if !visited.insert(state) {
-                    continue;
-                }
-                if goal.is_goal(state) {
+                //if !visited.insert(state) {
+                 //   continue;
+                //}
+                if goal.is_goal(state.borrow()) {
                     return Some(
                         stack.into_iter()
                              .filter_map(|(_, a)| a)
@@ -60,7 +65,7 @@ pub trait SearchSpace {
                              .collect()
                     )
                 }
-                stack.push((self.expand(state), Some(action)));
+                stack.push((self.expand(state.borrow()), Some(action)));
             } else {
                 stack.pop();
             }
@@ -79,6 +84,7 @@ pub mod tests {
     use std::iter::Enumerate;
     use std::cell::RefCell;
     use std::collections::HashSet;
+    use std::marker::PhantomData;
 
     struct RandomGraph {
         nodes: Vec<Vec<usize>>
@@ -159,45 +165,48 @@ pub mod tests {
         impl SearchSpace for TestSearch {
             type State = i32;
             type Action = Dir;
-            type Iterator = IntoIter<(Self::Action, Self::State)>;
 
-            fn expand(&self, state: &Self::State) -> Self::Iterator {
-                match *state {
-                    0 => vec![(Dir::Left, 1), (Dir::Right, 2)],
-                    1 => vec![(Dir::Left, 3), (Dir::Right, 4)],
-                    2 => vec![(Dir::Left, 2)],
-                    _ => vec![]
-                }.into_iter()
+            fn expand<'b>(&'b self, state: &Self::State) -> Box<Iterator<Item=(&Self::Action, &Self::State)> + 'b> {
+                Box::new(
+                    match *state {
+                        0 => vec![(Dir::Left, 1), (Dir::Right, 2)],
+                        1 => vec![(Dir::Left, 3), (Dir::Right, 4)],
+                        2 => vec![(Dir::Left, 2)],
+                        _ => vec![]
+                    }.into_iter()
+                )
             }
         }
 
         let ts = TestSearch;
 
-        assert_eq!(ts.dfs(&0, &0).unwrap(), vec![]);
-        assert_eq!(ts.dfs(&0, &1).unwrap(), vec![Dir::Left]);
-        assert_eq!(ts.dfs(&0, &2).unwrap(), vec![Dir::Right]);
-        assert_eq!(ts.dfs(&0, &3).unwrap(), vec![Dir::Left, Dir::Left]);
-        assert_eq!(ts.dfs(&0, &4).unwrap(), vec![Dir::Left, Dir::Right]);
-        assert_eq!(ts.dfs(&2, &2).unwrap(), vec![]);
+        assert_eq!(ts.dfs(&0, &0).unwrap(), Vec::<&Dir>::new());
+        assert_eq!(ts.dfs(&0, &1).unwrap(), vec![&Dir::Left]);
+        assert_eq!(ts.dfs(&0, &2).unwrap(), vec![&Dir::Right]);
+        assert_eq!(ts.dfs(&0, &3).unwrap(), vec![&Dir::Left, &Dir::Left]);
+        assert_eq!(ts.dfs(&0, &4).unwrap(), vec![&Dir::Left, &Dir::Right]);
+        assert_eq!(ts.dfs(&2, &2).unwrap(), Vec::<&Dir>::new());
         assert!(ts.dfs(&2, &0).is_none());
-        assert!(ts.dfs(&5, &0).is_none());
-    }
-*/
+    }*/
+
     #[test]
     pub fn test_dfs_simple_by_ref() {
         #[derive(Debug, PartialEq, Clone)]
         enum Dir { Left, Right }
 
-        struct TestSearch {
-            nodes: Vec<Vec<(Dir, usize)>>
+        struct TestSearch<'a, T: 'a> {
+            nodes: Vec<Vec<(Dir, usize)>>,
+            phantom: PhantomData<&'a T>
         }
 
-        impl SearchSpace for TestSearch {
+        impl<'a, T> SearchSpace<'a> for TestSearch<'a, T> {
             type State = usize;
             type Action = Dir;
 
-            // IntoIter<(&'static Self::Action, &'static Self::State)>
-            fn expand<'b>(&'b self, state: &Self::State) -> Box<Iterator<Item=(&Self::Action, &Self::State)> + 'b> {
+            type BState = &'a usize;
+            type BAction = &'a Dir;
+
+            fn expand(&'a self, state: &Self::State) -> Box<Iterator<Item=(Self::BAction, Self::BState)> + 'a> {
                 Box::new(
                     self.nodes.iter().nth(*state).expect(format!("no state: {}", *state).trim()).iter()
                     .map(|&(ref a, ref s)| (a, s))
@@ -205,14 +214,15 @@ pub mod tests {
             }
         }
 
-        let ts = TestSearch {
+        let ts: TestSearch<usize> = TestSearch {
             nodes: vec![
                 vec![(Dir::Left, 1), (Dir::Right, 2)],  // 0
                 vec![(Dir::Left, 3), (Dir::Right, 4)],  // 1
-                vec![(Dir::Left, 2)],                   // 2
+                vec![(Dir::Left, 4)],                   // 2
                 vec![],                                 // 3
                 vec![]                                  // 4
-            ]
+            ],
+            phantom: PhantomData
         };
 
         assert_eq!(ts.dfs(&0, &0).unwrap(), Vec::<&Dir>::new());
