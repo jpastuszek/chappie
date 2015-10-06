@@ -91,6 +91,7 @@ pub mod tests {
     use std::collections::HashSet;
     use std::marker::PhantomData;
 
+    /*
     struct RandomGraph {
         nodes: Vec<Vec<usize>>
     }
@@ -120,7 +121,7 @@ pub mod tests {
             buf
         }
     }
-/*
+
     impl SearchSpace for RandomGraph {
         type State = usize;
         type Action = usize;
@@ -159,6 +160,7 @@ pub mod tests {
             self.goal == *state
         }
     }
+    */
 
     #[test]
     pub fn test_dfs_simple() {
@@ -167,11 +169,14 @@ pub mod tests {
         #[derive(Debug, PartialEq)]
         enum Dir { Left, Right }
 
-        impl SearchSpace for TestSearch {
+        impl<'a> SearchSpace<'a> for TestSearch {
             type State = i32;
             type Action = Dir;
 
-            fn expand<'b>(&'b self, state: &Self::State) -> Box<Iterator<Item=(&Self::Action, &Self::State)> + 'b> {
+            type BState = i32;
+            type BAction = Dir;
+
+            fn expand(&'a self, state: &Self::State) -> Box<Iterator<Item=(Self::BAction, Self::BState)> + 'a> {
                 Box::new(
                     match *state {
                         0 => vec![(Dir::Left, 1), (Dir::Right, 2)],
@@ -185,14 +190,14 @@ pub mod tests {
 
         let ts = TestSearch;
 
-        assert_eq!(ts.dfs(&0, &0).unwrap(), Vec::<&Dir>::new());
-        assert_eq!(ts.dfs(&0, &1).unwrap(), vec![&Dir::Left]);
-        assert_eq!(ts.dfs(&0, &2).unwrap(), vec![&Dir::Right]);
-        assert_eq!(ts.dfs(&0, &3).unwrap(), vec![&Dir::Left, &Dir::Left]);
-        assert_eq!(ts.dfs(&0, &4).unwrap(), vec![&Dir::Left, &Dir::Right]);
-        assert_eq!(ts.dfs(&2, &2).unwrap(), Vec::<&Dir>::new());
-        assert!(ts.dfs(&2, &0).is_none());
-    }*/
+        assert_eq!(ts.dfs(0, &0).unwrap(), Vec::<Dir>::new());
+        assert_eq!(ts.dfs(0, &1).unwrap(), vec![Dir::Left]);
+        assert_eq!(ts.dfs(0, &2).unwrap(), vec![Dir::Right]);
+        assert_eq!(ts.dfs(0, &3).unwrap(), vec![Dir::Left, Dir::Left]);
+        assert_eq!(ts.dfs(0, &4).unwrap(), vec![Dir::Left, Dir::Right]);
+        assert_eq!(ts.dfs(2, &2).unwrap(), Vec::<Dir>::new());
+        assert!(ts.dfs(2, &0).is_none());
+    }
 
     #[test]
     pub fn test_dfs_simple_by_ref() {
