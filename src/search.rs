@@ -15,6 +15,10 @@ impl<T> Visited<T> where T: Hash + Eq {
         }
     }
 
+    fn is_visited(&self, value: &T) -> bool {
+        self.hash_set.contains(value)
+    }
+
     fn insert(&mut self, value: T) -> bool {
         self.hash_set.insert(value)
     }
@@ -45,7 +49,7 @@ pub trait SearchSpace<'a> {
             return Some(vec![]);
         }
 
-        //let mut visited = Visited::new();
+        let mut visited = Visited::new();
         let mut stack = vec![(self.expand(start.borrow()), None)];
 
         loop {
@@ -54,9 +58,9 @@ pub trait SearchSpace<'a> {
                 Some(&mut (ref mut iter, _)) => iter.next()
             };
             if let Some((action, state)) = next {
-                //if !visited.insert(state) {
-                 //   continue;
-                //}
+                if visited.is_visited(&state) {
+                    continue;
+                }
                 if goal.is_goal(state.borrow()) {
                     return Some(
                         stack.into_iter()
@@ -66,6 +70,7 @@ pub trait SearchSpace<'a> {
                     )
                 }
                 stack.push((self.expand(state.borrow()), Some(action)));
+                visited.insert(state);
             } else {
                 stack.pop();
             }
@@ -203,6 +208,8 @@ pub mod tests {
             type State = usize;
             type Action = Dir;
 
+            // HKT needed to leave lifetime unspecified here and specify it in fn expand as self
+            // lifetime
             type BState = &'a usize;
             type BAction = &'a Dir;
 
@@ -218,7 +225,7 @@ pub mod tests {
             nodes: vec![
                 vec![(Dir::Left, 1), (Dir::Right, 2)],  // 0
                 vec![(Dir::Left, 3), (Dir::Right, 4)],  // 1
-                vec![(Dir::Left, 4)],                   // 2
+                vec![(Dir::Left, 2)],                   // 2
                 vec![],                                 // 3
                 vec![]                                  // 4
             ],
