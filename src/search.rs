@@ -204,19 +204,19 @@ pub mod tests {
         enum Dir { Left, Right }
 
         struct TestSearch {
-            nodes: Vec<Vec<(Dir, usize)>>
+            nodes: Vec<Vec<(Dir, u32)>>
         }
 
         impl<'a> SearchSpace<'a> for TestSearch {
-            type State = usize;
+            type State = u32;
             type Action = Dir;
 
-            type BState = &'a usize;
+            type BState = &'a u32;
             type BAction = &'a Dir;
 
             fn expand(&'a self, state: &Self::State) -> Box<Iterator<Item=(Self::BAction, Self::BState)> + 'a> {
                 Box::new(
-                    self.nodes.iter().nth(*state).expect(format!("no state: {}", *state).trim()).iter()
+                    self.nodes.iter().nth(*state as usize).expect(format!("no state: {}", *state).trim()).iter()
                     .map(|&(ref a, ref s)| (a, s))
                 )
             }
