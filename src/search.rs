@@ -89,7 +89,6 @@ pub mod tests {
     use std::iter::Enumerate;
     use std::cell::RefCell;
     use std::collections::HashSet;
-    use std::marker::PhantomData;
 
     /*
     struct RandomGraph {
@@ -204,17 +203,14 @@ pub mod tests {
         #[derive(Debug, PartialEq, Clone)]
         enum Dir { Left, Right }
 
-        struct TestSearch<'a, T: 'a> {
-            nodes: Vec<Vec<(Dir, usize)>>,
-            phantom: PhantomData<&'a T>
+        struct TestSearch {
+            nodes: Vec<Vec<(Dir, usize)>>
         }
 
-        impl<'a, T> SearchSpace<'a> for TestSearch<'a, T> {
+        impl<'a> SearchSpace<'a> for TestSearch {
             type State = usize;
             type Action = Dir;
 
-            // HKT needed to leave lifetime unspecified here and specify it in fn expand as self
-            // lifetime
             type BState = &'a usize;
             type BAction = &'a Dir;
 
@@ -226,15 +222,14 @@ pub mod tests {
             }
         }
 
-        let ts: TestSearch<usize> = TestSearch {
+        let ts: TestSearch = TestSearch {
             nodes: vec![
                 vec![(Dir::Left, 1), (Dir::Right, 2)],  // 0
                 vec![(Dir::Left, 3), (Dir::Right, 4)],  // 1
                 vec![(Dir::Left, 2)],                   // 2
                 vec![],                                 // 3
                 vec![]                                  // 4
-            ],
-            phantom: PhantomData
+            ]
         };
 
         assert_eq!(ts.dfs(&0, &0).unwrap(), Vec::<&Dir>::new());
