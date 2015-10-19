@@ -34,18 +34,21 @@ impl<T> SearchGoal<T> for T where T: PartialEq {
     }
 }
 
+impl<'a, T> SearchGoal<T> for &'a T where T: PartialEq {
+    fn is_goal(&self, state: &T) -> bool {
+        self == &state
+    }
+}
+
 pub trait SearchSpace<'a> {
-    type State;
+    type State: Hash + Eq;
     type Action;
 
-    type BState: Borrow<Self::State> + Hash + Eq;
-    type BAction: Borrow<Self::Action>;
+    fn expand(&'a self, state: &Self::State) -> Box<Iterator<Item=(Self::Action, Self::State)> + 'a>;
 
-    fn expand(&'a self, state: &Self::State) -> Box<Iterator<Item=(Self::BAction, Self::BState)> + 'a>;
-
-    fn dfs<G>(&'a self, start: Self::BState, goal: &G) -> Option<Vec<Self::BAction>>
+    fn dfs<G>(&'a self, start: Self::State, goal: &G) -> Option<Vec<Self::Action>>
     where G: SearchGoal<Self::State> {
-        if goal.is_goal(start.borrow()) {
+        if goal.is_goal(&start) {
             return Some(vec![]);
         }
 
@@ -172,10 +175,7 @@ pub mod tests {
             type State = i32;
             type Action = Dir;
 
-            type BState = i32;
-            type BAction = Dir;
-
-            fn expand(&'a self, state: &Self::State) -> Box<Iterator<Item=(Self::BAction, Self::BState)> + 'a> {
+            fn expand(&'a self, state: &Self::State) -> Box<Iterator<Item=(Self::Action, Self::State)> + 'a> {
                 Box::new(
                     match *state {
                         0 => vec![(Dir::Left, 1), (Dir::Right, 2)],
@@ -208,15 +208,12 @@ pub mod tests {
         }
 
         impl<'a> SearchSpace<'a> for TestSearch {
-            type State = u32;
-            type Action = Dir;
+            type State = &'a u32;
+            type Action = &'a Dir;
 
-            type BState = &'a u32;
-            type BAction = &'a Dir;
-
-            fn expand(&'a self, state: &Self::State) -> Box<Iterator<Item=(Self::BAction, Self::BState)> + 'a> {
+            fn expand(&'a self, state: &Self::State) -> Box<Iterator<Item=(Self::Action, Self::State)> + 'a> {
                 Box::new(
-                    self.nodes.iter().nth(*state as usize).expect(format!("no state: {}", *state).trim()).iter()
+                    self.nodes.iter().nth(**state as usize).expect(format!("no state: {}", *state).trim()).iter()
                     .map(|&(ref a, ref s)| (a, s))
                 )
             }
@@ -232,13 +229,13 @@ pub mod tests {
             ]
         };
 
-        assert_eq!(ts.dfs(&0, &0).unwrap(), Vec::<&Dir>::new());
-        assert_eq!(ts.dfs(&0, &1).unwrap(), vec![&Dir::Left]);
-        assert_eq!(ts.dfs(&0, &2).unwrap(), vec![&Dir::Right]);
-        assert_eq!(ts.dfs(&0, &3).unwrap(), vec![&Dir::Left, &Dir::Left]);
-        assert_eq!(ts.dfs(&0, &4).unwrap(), vec![&Dir::Left, &Dir::Right]);
-        assert_eq!(ts.dfs(&2, &2).unwrap(), Vec::<&Dir>::new());
-        assert!(ts.dfs(&2, &0).is_none());
+        assert_eq!(ts.dfs(&0, &&0).unwrap(), Vec::<&Dir>::new());
+        assert_eq!(ts.dfs(&0, &&1).unwrap(), vec![&Dir::Left]);
+        assert_eq!(ts.dfs(&0, &&2).unwrap(), vec![&Dir::Right]);
+        assert_eq!(ts.dfs(&0, &&3).unwrap(), vec![&Dir::Left, &Dir::Left]);
+        assert_eq!(ts.dfs(&0, &&4).unwrap(), vec![&Dir::Left, &Dir::Right]);
+        assert_eq!(ts.dfs(&2, &&2).unwrap(), Vec::<&Dir>::new());
+        assert!(ts.dfs(&2, &&0).is_none());
     }
 
 /*
