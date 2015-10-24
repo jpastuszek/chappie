@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::borrow::Borrow;
 
-
 struct Visited<T> {
     hash_set: HashSet<T>
 }
@@ -24,31 +23,16 @@ impl<T> Visited<T> where T: Hash + Eq {
     }
 }
 
-pub trait SearchGoal<T> {
-    fn is_goal(&self, state: &T) -> bool;
-}
-
-impl<T> SearchGoal<T> for T where T: PartialEq {
-    fn is_goal(&self, state: &T) -> bool {
-        self == state
-    }
-}
-
-impl<'a, T> SearchGoal<T> for &'a T where T: PartialEq {
-    fn is_goal(&self, state: &T) -> bool {
-        self == &state
-    }
-}
-
 pub trait SearchSpace<'a> {
     type State: Hash + Eq;
     type Action;
 
     fn expand(&'a self, state: &Self::State) -> Box<Iterator<Item=(Self::Action, Self::State)> + 'a>;
 
-    fn dfs<G>(&'a self, start: Self::State, goal: &G) -> Option<Vec<Self::Action>>
-    where G: SearchGoal<Self::State> {
-        if goal.is_goal(&start) {
+    fn dfs<G>(&'a self, start: Self::State, is_goal: G) -> Option<Vec<Self::Action>>
+    where G: Fn(&Self::State) -> bool
+    {
+        if is_goal(&start) {
             return Some(vec![]);
         }
 
@@ -64,7 +48,7 @@ pub trait SearchSpace<'a> {
                 if visited.is_visited(&state) {
                     continue;
                 }
-                if goal.is_goal(state.borrow()) {
+                if is_goal(&state) {
                     return Some(
                         stack.into_iter()
                              .filter_map(|(_, a)| a)
@@ -83,7 +67,7 @@ pub trait SearchSpace<'a> {
 
 #[cfg(test)]
 pub mod tests {
-    use super::{SearchSpace, SearchGoal};
+    use super::SearchSpace;
     use std::vec::IntoIter;
     use std::slice::Iter;
     use std::iter::Map;
@@ -189,13 +173,13 @@ pub mod tests {
 
         let ts = TestSearch;
 
-        assert_eq!(ts.dfs(0, &0).unwrap(), Vec::<Dir>::new());
-        assert_eq!(ts.dfs(0, &1).unwrap(), vec![Dir::Left]);
-        assert_eq!(ts.dfs(0, &2).unwrap(), vec![Dir::Right]);
-        assert_eq!(ts.dfs(0, &3).unwrap(), vec![Dir::Left, Dir::Left]);
-        assert_eq!(ts.dfs(0, &4).unwrap(), vec![Dir::Left, Dir::Right]);
-        assert_eq!(ts.dfs(2, &2).unwrap(), Vec::<Dir>::new());
-        assert!(ts.dfs(2, &0).is_none());
+        assert_eq!(ts.dfs(0, |&x| x == 0).unwrap(), Vec::<Dir>::new());
+        assert_eq!(ts.dfs(0, |&x| x == 1).unwrap(), vec![Dir::Left]);
+        assert_eq!(ts.dfs(0, |&x| x == 2).unwrap(), vec![Dir::Right]);
+        assert_eq!(ts.dfs(0, |&x| x == 3).unwrap(), vec![Dir::Left, Dir::Left]);
+        assert_eq!(ts.dfs(0, |&x| x == 4).unwrap(), vec![Dir::Left, Dir::Right]);
+        assert_eq!(ts.dfs(2, |&x| x == 2).unwrap(), Vec::<Dir>::new());
+        assert!(ts.dfs(2, |&x| x == 0).is_none());
     }
 
     #[test]
@@ -229,13 +213,13 @@ pub mod tests {
             ]
         };
 
-        assert_eq!(ts.dfs(&0, &&0).unwrap(), Vec::<&Dir>::new());
-        assert_eq!(ts.dfs(&0, &&1).unwrap(), vec![&Dir::Left]);
-        assert_eq!(ts.dfs(&0, &&2).unwrap(), vec![&Dir::Right]);
-        assert_eq!(ts.dfs(&0, &&3).unwrap(), vec![&Dir::Left, &Dir::Left]);
-        assert_eq!(ts.dfs(&0, &&4).unwrap(), vec![&Dir::Left, &Dir::Right]);
-        assert_eq!(ts.dfs(&2, &&2).unwrap(), Vec::<&Dir>::new());
-        assert!(ts.dfs(&2, &&0).is_none());
+        assert_eq!(ts.dfs(&0, |&x| *x == 0).unwrap(), Vec::<&Dir>::new());
+        assert_eq!(ts.dfs(&0, |&x| *x == 1).unwrap(), vec![&Dir::Left]);
+        assert_eq!(ts.dfs(&0, |&x| *x == 2).unwrap(), vec![&Dir::Right]);
+        assert_eq!(ts.dfs(&0, |&x| *x == 3).unwrap(), vec![&Dir::Left, &Dir::Left]);
+        assert_eq!(ts.dfs(&0, |&x| *x == 4).unwrap(), vec![&Dir::Left, &Dir::Right]);
+        assert_eq!(ts.dfs(&2, |&x| *x == 2).unwrap(), Vec::<&Dir>::new());
+        assert!(ts.dfs(&2, |&x| *x == 0).is_none());
     }
 
 /*
