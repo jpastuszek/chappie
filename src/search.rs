@@ -2,26 +2,6 @@ use std::iter::Iterator;
 use std::collections::HashSet;
 use std::hash::Hash;
 
-struct Visited<T> {
-    hash_set: HashSet<T>
-}
-
-impl<T> Visited<T> where T: Hash + Eq {
-    fn new() -> Visited<T> {
-        Visited {
-            hash_set: HashSet::new()
-        }
-    }
-
-    fn is_visited(&self, value: &T) -> bool {
-        self.hash_set.contains(value)
-    }
-
-    fn insert(&mut self, value: T) -> bool {
-        self.hash_set.insert(value)
-    }
-}
-
 pub trait SearchSpace<'a> {
     type State: Hash + Eq;
     type Action;
@@ -36,7 +16,7 @@ pub trait SearchSpace<'a> {
             return Some(vec![]);
         }
 
-        let mut visited = Visited::new();
+        let mut visited = HashSet::new();
         let mut stack = vec![(self.expand(&start), None)];
 
         loop {
@@ -45,7 +25,7 @@ pub trait SearchSpace<'a> {
                 Some(&mut (ref mut iter, _)) => iter.next()
             };
             if let Some((action, state)) = next {
-                if visited.is_visited(&state) {
+                if visited.contains(&state) {
                     continue;
                 }
                 if is_goal(&state) {
