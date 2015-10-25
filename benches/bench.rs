@@ -14,12 +14,12 @@ struct BinaryTree;
 const MAX_DEPTH: u64 = 16;
 const MAX_OFFSET: u64 = 1 << (MAX_DEPTH + 1);
 
-impl SearchSpace for BinaryTree {
+impl<'a> SearchSpace<'a> for BinaryTree {
     type State = u64;
     type Action = Dir;
     type Iterator = IntoIter<(Self::Action, Self::State)>;
 
-    fn expand(&self, state: &Self::State) -> Self::Iterator {
+    fn expand(&'a self, state: &Self::State) -> Self::Iterator {
         let offset = (*state + 2).next_power_of_two();
         if offset >= MAX_OFFSET {
             return vec![].into_iter();
@@ -33,5 +33,5 @@ impl SearchSpace for BinaryTree {
 #[bench]
 fn dfs(b: &mut Bencher) {
     let tree = BinaryTree;
-    b.iter(|| { black_box(tree.dfs(&0, &2)) });
+    b.iter(|| { black_box(tree.dfs(0, |&g| g == 2)) });
 }
