@@ -9,10 +9,10 @@ pub trait SearchSpace<'a> {
 
     fn expand(&'a self, state: &Self::State) -> Self::Iterator;
 
-    fn dfs<G>(&'a self, start: Self::State, is_goal: G) -> Option<Vec<Self::Action>>
-    where G: Fn(&Self::State) -> bool
+    fn dfs<P>(&'a self, start: Self::State, predicate: P) -> Option<Vec<Self::Action>>
+    where P: Fn(&Self::State) -> bool
     {
-        if is_goal(&start) {
+        if predicate(&start) {
             return Some(vec![]);
         }
 
@@ -28,7 +28,7 @@ pub trait SearchSpace<'a> {
                 if visited.contains(&state) {
                     continue;
                 }
-                if is_goal(&state) {
+                if predicate(&state) {
                     return Some(
                         stack.into_iter()
                              .filter_map(|(_, a)| a)
@@ -123,13 +123,13 @@ pub mod tests {
 
         let ts = TestSearch;
 
-        assert_eq!(ts.dfs(0, |&x| x == 0).unwrap(), Vec::<Dir>::new());
-        assert_eq!(ts.dfs(0, |&x| x == 1).unwrap(), vec![Dir::Left]);
-        assert_eq!(ts.dfs(0, |&x| x == 2).unwrap(), vec![Dir::Right]);
-        assert_eq!(ts.dfs(0, |&x| x == 3).unwrap(), vec![Dir::Left, Dir::Left]);
-        assert_eq!(ts.dfs(0, |&x| x == 4).unwrap(), vec![Dir::Left, Dir::Right]);
-        assert_eq!(ts.dfs(2, |&x| x == 2).unwrap(), Vec::<Dir>::new());
-        assert!(ts.dfs(2, |&x| x == 0).is_none());
+        assert_eq!(ts.dfs(0, |&s| s == 0).unwrap(), Vec::<Dir>::new());
+        assert_eq!(ts.dfs(0, |&s| s == 1).unwrap(), vec![Dir::Left]);
+        assert_eq!(ts.dfs(0, |&s| s == 2).unwrap(), vec![Dir::Right]);
+        assert_eq!(ts.dfs(0, |&s| s == 3).unwrap(), vec![Dir::Left, Dir::Left]);
+        assert_eq!(ts.dfs(0, |&s| s == 4).unwrap(), vec![Dir::Left, Dir::Right]);
+        assert_eq!(ts.dfs(2, |&s| s == 2).unwrap(), Vec::<Dir>::new());
+        assert!(ts.dfs(2, |&s| s == 0).is_none());
     }
 
     #[test]
@@ -162,13 +162,13 @@ pub mod tests {
             ]
         };
 
-        assert_eq!(ts.dfs(&0, |&x| *x == 0).unwrap(), Vec::<&Dir>::new());
-        assert_eq!(ts.dfs(&0, |&x| *x == 1).unwrap(), vec![&Dir::Left]);
-        assert_eq!(ts.dfs(&0, |&x| *x == 2).unwrap(), vec![&Dir::Right]);
-        assert_eq!(ts.dfs(&0, |&x| *x == 3).unwrap(), vec![&Dir::Left, &Dir::Left]);
-        assert_eq!(ts.dfs(&0, |&x| *x == 4).unwrap(), vec![&Dir::Left, &Dir::Right]);
-        assert_eq!(ts.dfs(&2, |&x| *x == 2).unwrap(), Vec::<&Dir>::new());
-        assert!(ts.dfs(&2, |&x| *x == 0).is_none());
+        assert_eq!(ts.dfs(&0, |&s| *s == 0).unwrap(), Vec::<&Dir>::new());
+        assert_eq!(ts.dfs(&0, |&s| *s == 1).unwrap(), vec![&Dir::Left]);
+        assert_eq!(ts.dfs(&0, |&s| *s == 2).unwrap(), vec![&Dir::Right]);
+        assert_eq!(ts.dfs(&0, |&s| *s == 3).unwrap(), vec![&Dir::Left, &Dir::Left]);
+        assert_eq!(ts.dfs(&0, |&s| *s == 4).unwrap(), vec![&Dir::Left, &Dir::Right]);
+        assert_eq!(ts.dfs(&2, |&s| *s == 2).unwrap(), Vec::<&Dir>::new());
+        assert!(ts.dfs(&2, |&s| *s == 0).is_none());
     }
 
     #[test]
@@ -183,10 +183,9 @@ pub mod tests {
 
         for start in 0..N_NODES {
             for goal in 0..N_NODES {
-                // need RefCell because the is_goal closure is not allowed to mutate
                 let visited = RefCell::new(HashSet::new());
 
-                if let Some(path) = g.dfs(start, |&g|{ visited.borrow_mut().insert(g); g == goal}) {
+                if let Some(path) = g.dfs(start, |&s|{ visited.borrow_mut().insert(s); s == goal}) {
                     let mut state = start;
                     for action in path {
                         state = g.expand(&state).skip(action).next().unwrap().1;
