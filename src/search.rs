@@ -134,7 +134,7 @@ pub mod tests {
 
     #[test]
     pub fn test_dfs_simple_by_ref() {
-        #[derive(Debug, PartialEq, Clone)]
+        #[derive(Debug, PartialEq)]
         enum Dir { Left, Right }
 
         struct TestSearch {
@@ -147,18 +147,22 @@ pub mod tests {
             type Iterator = IntoIter<(Self::Action, Self::State)>;
 
             fn expand(&'a self, state: &Self::State) -> Self::Iterator {
-                self.nodes.iter().nth(**state as usize).expect(format!("no state: {}", *state).trim()).iter()
-                .map(|&(ref a, ref s)| (a, s)).collect::<Vec<_>>().into_iter()
+                self.nodes
+                    .iter()
+                    .nth(**state as usize).unwrap().iter()
+                    .map(|&(ref a, ref s)| (a, s))
+                    .collect::<Vec<_>>()
+                    .into_iter()
             }
         }
 
         let ts: TestSearch = TestSearch {
             nodes: vec![
-                vec![(Dir::Left, 1), (Dir::Right, 2)],  // 0
-                vec![(Dir::Left, 3), (Dir::Right, 4)],  // 1
-                vec![(Dir::Left, 2)],                   // 2
-                vec![],                                 // 3
-                vec![]                                  // 4
+                vec![(Dir::Left, 1), (Dir::Right, 2)],
+                vec![(Dir::Left, 3), (Dir::Right, 4)],
+                vec![(Dir::Left, 2)],
+                vec![],
+                vec![]
             ]
         };
 
@@ -185,7 +189,10 @@ pub mod tests {
             for goal in 0..N_NODES {
                 let visited = RefCell::new(HashSet::new());
 
-                if let Some(path) = g.dfs(start, |&s|{ visited.borrow_mut().insert(s); s == goal}) {
+                if let Some(path) = g.dfs(start, |&s| {
+                    visited.borrow_mut().insert(s);
+                    s == goal
+                }) {
                     let mut state = start;
                     for action in path {
                         state = g.expand(&state).skip(action).next().unwrap().1;
