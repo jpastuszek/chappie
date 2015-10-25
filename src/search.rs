@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::hash::Hash;
 
 pub trait SearchSpace<'a> {
-    type State: Hash + Eq;
+    type State: Hash + Eq + Clone;
     type Action;
     type Iterator: Iterator<Item=(Self::Action, Self::State)>;
 
@@ -25,7 +25,7 @@ pub trait SearchSpace<'a> {
                 Some(&mut (ref mut iter, _)) => iter.next()
             };
             if let Some((action, state)) = next {
-                if visited.contains(&state) {
+                if !visited.insert(state.clone()) {
                     continue;
                 }
                 if predicate(&state) {
@@ -37,7 +37,6 @@ pub trait SearchSpace<'a> {
                     )
                 }
                 stack.push((self.expand(&state), Some(action)));
-                visited.insert(state);
             } else {
                 stack.pop();
             }
