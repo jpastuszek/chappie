@@ -69,14 +69,12 @@ pub trait SearchSpace<'a> {
 pub mod tests {
     use super::SearchSpace;
     use std::vec::IntoIter;
-    use std::slice::Iter;
-    use std::iter::Map;
     use rand::chacha::ChaChaRng;
     use rand::Rng;
     use std::iter::Enumerate;
     use std::cell::RefCell;
     use std::collections::HashSet;
-/*
+
     struct RandomGraph {
         nodes: Vec<Vec<usize>>
     }
@@ -120,7 +118,6 @@ pub mod tests {
             }.into_iter().enumerate()
         }
     }
-    */
 
     #[test]
     pub fn test_dfs_simple() {
@@ -204,24 +201,24 @@ pub mod tests {
         assert!(g.dfs(N_NODES, |&g| g == 0).is_none());
         assert!(g.dfs(0, |&g| g == N_NODES).is_none());
 
-        for start in (0..N_NODES) {
-            for goal in (0..N_NODES) {
-                if let Some(path) = g.dfs(start, |&g| g == goal) {
+        for start in 0..N_NODES {
+            for goal in 0..N_NODES {
+                // need RefCell because the is_goal closure is not allowed to mutate
+                let visited = RefCell::new(HashSet::new());
+
+                if let Some(path) = g.dfs(start, |&g|{ visited.borrow_mut().insert(g); g == goal}) {
                     let mut state = start;
                     for action in path {
                         state = g.expand(&state).skip(action).next().unwrap().1;
                     }
                     assert_eq!(state, goal);
                 } else {
-                    /*
-                    let visited: HashSet<_> = observer.visited().iter().cloned().collect();
-                    for state in observer.visited() {
-                        assert!(!observer.is_goal(&state));
+                    for state in visited.borrow().iter() {
+                        assert!(*state != goal);
                         for (_, next_state) in g.expand(&state) {
-                            assert!(visited.contains(&next_state));
+                            assert!(visited.borrow().contains(&next_state));
                         }
                     }
-                    */
                 }
             }
         }
