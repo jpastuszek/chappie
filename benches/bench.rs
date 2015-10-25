@@ -30,8 +30,48 @@ impl<'a> SearchSpace<'a> for BinaryTree {
     }
 }
 
+struct BinaryTreeByRef {
+    nodes: Vec<Vec<(Dir, u64)>>
+}
+
+impl BinaryTreeByRef {
+    fn new() -> BinaryTreeByRef {
+        let mut nodes = vec![];
+        let tree = BinaryTree;
+        let max_nodes: u64 = 2u64.pow((MAX_DEPTH + 1) as u32) - 1;
+
+        for node in 0..max_nodes {
+            nodes.push(tree.expand(&node).collect());
+        }
+
+        BinaryTreeByRef { nodes: nodes }
+    }
+}
+
+impl<'a> SearchSpace<'a> for BinaryTreeByRef {
+    type State = &'a u64;
+    type Action = &'a Dir;
+    type Iterator = IntoIter<(Self::Action, Self::State)>;
+
+    fn expand(&'a self, state: &Self::State) -> Self::Iterator {
+        self.nodes
+            .iter()
+            .nth(**state as usize).unwrap().iter()
+            .map(|&(ref a, ref s)| (a, s))
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
+}
+
 #[bench]
 fn dfs(b: &mut Bencher) {
     let tree = BinaryTree;
     b.iter(|| { black_box(tree.dfs(0, |&s| s == 2)) });
+}
+
+#[bench]
+fn dfs_by_ref(b: &mut Bencher) {
+    let tree = BinaryTreeByRef::new();
+    let start = 0;
+    b.iter(|| { black_box(tree.dfs(&start, |&s| *s == 2)) });
 }
