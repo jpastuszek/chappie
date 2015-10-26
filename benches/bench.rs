@@ -6,6 +6,7 @@ extern crate test;
 use chappie::search::SearchSpace;
 use test::{Bencher, black_box};
 use std::vec::IntoIter;
+use std::slice::Iter;
 
 enum Dir { Left, Right}
 
@@ -48,18 +49,30 @@ impl BinaryTreeByRef {
     }
 }
 
+struct BinaryTreeByRefIter<'a> {
+    iter: Iter<'a, (Dir, u64)>
+}
+
+impl<'a> Iterator for BinaryTreeByRefIter<'a> {
+    type Item = (&'a Dir, &'a u64);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(&(ref a, ref s)) = self.iter.next() {
+            return Some((a, s));
+        }
+        None
+    }
+}
+
 impl<'a> SearchSpace<'a> for BinaryTreeByRef {
     type State = &'a u64;
     type Action = &'a Dir;
-    type Iterator = IntoIter<(Self::Action, Self::State)>;
+    type Iterator = BinaryTreeByRefIter<'a>;
 
     fn expand(&'a self, state: &Self::State) -> Self::Iterator {
-        self.nodes
-            .iter()
-            .nth(**state as usize).unwrap().iter()
-            .map(|&(ref a, ref s)| (a, s))
-            .collect::<Vec<_>>()
-            .into_iter()
+        BinaryTreeByRefIter {
+            iter: self.nodes[**state as usize].iter()
+        }
     }
 }
 
