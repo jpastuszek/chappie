@@ -89,7 +89,7 @@ pub mod tests {
         type Action = usize;
         type Iterator = Enumerate<IntoIter<usize>>;
 
-        fn expand(&self, state: &usize) -> Self::Iterator {
+        fn expand(&self, state: &Self::State) -> Self::Iterator {
             if *state < self.nodes.len() {
                 self.nodes[*state].clone()
             } else {
@@ -181,8 +181,8 @@ pub mod tests {
 
         let g = RandomGraph::new(N_NODES, MAX_EDGES);
 
-        assert!(g.dfs(N_NODES, |&g| g == 0).is_none());
-        assert!(g.dfs(0, |&g| g == N_NODES).is_none());
+        assert!(g.dfs(N_NODES, |&s| s == 0).is_none());
+        assert!(g.dfs(0, |&s| s == N_NODES).is_none());
 
         for start in 0..N_NODES {
             for goal in 0..N_NODES {
