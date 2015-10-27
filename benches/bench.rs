@@ -7,6 +7,7 @@ use chappie::search::SearchSpace;
 use test::{Bencher, black_box};
 use std::vec::IntoIter;
 use std::slice::Iter;
+use std::rc::Rc;
 
 enum Dir { Left, Right}
 
@@ -20,7 +21,7 @@ impl<'a> SearchSpace<'a> for BinaryTree {
     type Action = Dir;
     type Iterator = IntoIter<(Self::Action, Self::State)>;
 
-    fn expand(&'a self, state: &Self::State) -> Self::Iterator {
+    fn expand(&'a self, state: Rc<Self::State>) -> Self::Iterator {
         let offset = (*state + 2).next_power_of_two();
         if offset >= MAX_OFFSET {
             return vec![].into_iter();
@@ -42,7 +43,7 @@ impl BinaryTreeByRef {
         let max_nodes: u64 = 2u64.pow((MAX_DEPTH + 1) as u32) - 1;
 
         for node in 0..max_nodes {
-            nodes.push(tree.expand(&node).collect());
+            nodes.push(tree.expand(Rc::new(node)).collect());
         }
 
         BinaryTreeByRef { nodes: nodes }
@@ -69,7 +70,7 @@ impl<'a> SearchSpace<'a> for BinaryTreeByRef {
     type Action = &'a Dir;
     type Iterator = BinaryTreeByRefIter<'a>;
 
-    fn expand(&'a self, state: &Self::State) -> Self::Iterator {
+    fn expand(&'a self, state: Rc<Self::State>) -> Self::Iterator {
         BinaryTreeByRefIter {
             iter: self.nodes[**state as usize].iter()
         }
@@ -79,12 +80,12 @@ impl<'a> SearchSpace<'a> for BinaryTreeByRef {
 #[bench]
 fn dfs(b: &mut Bencher) {
     let tree = BinaryTree;
-    b.iter(|| { black_box(tree.dfs(0, |&s| s == 2)) });
+    b.iter(|| { black_box(tree.dfs(0, |s| *s == 2)) });
 }
 
 #[bench]
 fn dfs_by_ref(b: &mut Bencher) {
     let tree = BinaryTreeByRef::new();
     let start = 0;
-    b.iter(|| { black_box(tree.dfs(&start, |&s| *s == 2)) });
+    b.iter(|| { black_box(tree.dfs(&start, |s| **s == 2)) });
 }

@@ -1,23 +1,25 @@
 use std::iter::Iterator;
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::rc::Rc;
 
 pub trait SearchSpace<'a> {
-    type State: Hash + Eq + Clone;
+    type State: Hash + Eq;
     type Action;
     type Iterator: Iterator<Item=(Self::Action, Self::State)>;
 
-    fn expand(&'a self, state: &Self::State) -> Self::Iterator;
+    fn expand(&'a self, state: Rc<Self::State>) -> Self::Iterator;
 
     fn dfs<P>(&'a self, start: Self::State, predicate: P) -> Option<Vec<Self::Action>>
-    where P: Fn(&Self::State) -> bool
+    where P: Fn(Rc<Self::State>) -> bool
     {
-        if predicate(&start) {
+        let state_rc = Rc::new(start);
+        if predicate(state_rc.clone()) {
             return Some(vec![]);
         }
 
         let mut visited = HashSet::new();
-        let mut stack = vec![(self.expand(&start), None)];
+        let mut stack = vec![(self.expand(state_rc.clone()), None)];
 
         loop {
             let next = match stack.last_mut() {
@@ -25,10 +27,12 @@ pub trait SearchSpace<'a> {
                 Some(&mut (ref mut iter, _)) => iter.next()
             };
             if let Some((action, state)) = next {
-                if !visited.insert(state.clone()) {
+                let state_rc = Rc::new(state);
+
+                if !visited.insert(state_rc.clone()) {
                     continue;
                 }
-                if predicate(&state) {
+                if predicate(state_rc.clone()) {
                     return Some(
                         stack.into_iter()
                              .filter_map(|(_, a)| a)
@@ -36,7 +40,7 @@ pub trait SearchSpace<'a> {
                              .collect()
                     )
                 }
-                stack.push((self.expand(&state), Some(action)));
+                stack.push((self.expand(state_rc), Some(action)));
             } else {
                 stack.pop();
             }
@@ -53,6 +57,7 @@ pub mod tests {
     use std::iter::Enumerate;
     use std::cell::RefCell;
     use std::collections::HashSet;
+    use std::rc::Rc;
 
     struct RandomGraph {
         nodes: Vec<Vec<usize>>
@@ -89,7 +94,7 @@ pub mod tests {
         type Action = usize;
         type Iterator = Enumerate<IntoIter<usize>>;
 
-        fn expand(&self, state: &usize) -> Self::Iterator {
+        fn expand(&self, state: Rc<usize>) -> Self::Iterator {
             if *state < self.nodes.len() {
                 self.nodes[*state].clone()
             } else {
@@ -110,7 +115,7 @@ pub mod tests {
             type Action = Dir;
             type Iterator = IntoIter<(Self::Action, Self::State)>;
 
-            fn expand(&'a self, state: &Self::State) -> Self::Iterator {
+            fn expand(&'a self, state: Rc<Self::State>) -> Self::Iterator {
                 match *state {
                     0 => vec![(Dir::Left, 1), (Dir::Right, 2)],
                     1 => vec![(Dir::Left, 3), (Dir::Right, 4)],
@@ -122,13 +127,13 @@ pub mod tests {
 
         let ts = TestSearch;
 
-        assert_eq!(ts.dfs(0, |&s| s == 0).unwrap(), Vec::<Dir>::new());
-        assert_eq!(ts.dfs(0, |&s| s == 1).unwrap(), vec![Dir::Left]);
-        assert_eq!(ts.dfs(0, |&s| s == 2).unwrap(), vec![Dir::Right]);
-        assert_eq!(ts.dfs(0, |&s| s == 3).unwrap(), vec![Dir::Left, Dir::Left]);
-        assert_eq!(ts.dfs(0, |&s| s == 4).unwrap(), vec![Dir::Left, Dir::Right]);
-        assert_eq!(ts.dfs(2, |&s| s == 2).unwrap(), Vec::<Dir>::new());
-        assert!(ts.dfs(2, |&s| s == 0).is_none());
+        assert_eq!(ts.dfs(0, |s| *s == 0).unwrap(), Vec::<Dir>::new());
+        assert_eq!(ts.dfs(0, |s| *s == 1).unwrap(), vec![Dir::Left]);
+        assert_eq!(ts.dfs(0, |s| *s == 2).unwrap(), vec![Dir::Right]);
+        assert_eq!(ts.dfs(0, |s| *s == 3).unwrap(), vec![Dir::Left, Dir::Left]);
+        assert_eq!(ts.dfs(0, |s| *s == 4).unwrap(), vec![Dir::Left, Dir::Right]);
+        assert_eq!(ts.dfs(2, |s| *s == 2).unwrap(), Vec::<Dir>::new());
+        assert!(ts.dfs(2, |s| *s == 0).is_none());
     }
 
     #[test]
@@ -145,7 +150,7 @@ pub mod tests {
             type Action = &'a Dir;
             type Iterator = IntoIter<(Self::Action, Self::State)>;
 
-            fn expand(&'a self, state: &Self::State) -> Self::Iterator {
+            fn expand(&'a self, state: Rc<Self::State>) -> Self::Iterator {
                 self.nodes
                     .iter()
                     .nth(**state as usize).unwrap().iter()
@@ -165,13 +170,13 @@ pub mod tests {
             ]
         };
 
-        assert_eq!(ts.dfs(&0, |&s| *s == 0).unwrap(), Vec::<&Dir>::new());
-        assert_eq!(ts.dfs(&0, |&s| *s == 1).unwrap(), vec![&Dir::Left]);
-        assert_eq!(ts.dfs(&0, |&s| *s == 2).unwrap(), vec![&Dir::Right]);
-        assert_eq!(ts.dfs(&0, |&s| *s == 3).unwrap(), vec![&Dir::Left, &Dir::Left]);
-        assert_eq!(ts.dfs(&0, |&s| *s == 4).unwrap(), vec![&Dir::Left, &Dir::Right]);
-        assert_eq!(ts.dfs(&2, |&s| *s == 2).unwrap(), Vec::<&Dir>::new());
-        assert!(ts.dfs(&2, |&s| *s == 0).is_none());
+        assert_eq!(ts.dfs(&0, |s| **s == 0).unwrap(), Vec::<&Dir>::new());
+        assert_eq!(ts.dfs(&0, |s| **s == 1).unwrap(), vec![&Dir::Left]);
+        assert_eq!(ts.dfs(&0, |s| **s == 2).unwrap(), vec![&Dir::Right]);
+        assert_eq!(ts.dfs(&0, |s| **s == 3).unwrap(), vec![&Dir::Left, &Dir::Left]);
+        assert_eq!(ts.dfs(&0, |s| **s == 4).unwrap(), vec![&Dir::Left, &Dir::Right]);
+        assert_eq!(ts.dfs(&2, |s| **s == 2).unwrap(), Vec::<&Dir>::new());
+        assert!(ts.dfs(&2, |s| **s == 0).is_none());
     }
 
     #[test]
@@ -181,26 +186,26 @@ pub mod tests {
 
         let g = RandomGraph::new(N_NODES, MAX_EDGES);
 
-        assert!(g.dfs(N_NODES, |&g| g == 0).is_none());
-        assert!(g.dfs(0, |&g| g == N_NODES).is_none());
+        assert!(g.dfs(N_NODES, |g| *g == 0).is_none());
+        assert!(g.dfs(0, |g| *g == N_NODES).is_none());
 
         for start in 0..N_NODES {
             for goal in 0..N_NODES {
                 let visited = RefCell::new(HashSet::new());
 
-                if let Some(path) = g.dfs(start, |&s| {
-                    visited.borrow_mut().insert(s);
-                    s == goal
+                if let Some(path) = g.dfs(start, |s| {
+                    visited.borrow_mut().insert(*s);
+                    *s == goal
                 }) {
                     let mut state = start;
                     for action in path {
-                        state = g.expand(&state).skip(action).next().unwrap().1;
+                        state = g.expand(Rc::new(state)).skip(action).next().unwrap().1;
                     }
                     assert_eq!(state, goal);
                 } else {
                     for state in visited.borrow().iter() {
                         assert!(*state != goal);
-                        for (_, next_state) in g.expand(&state) {
+                        for (_, next_state) in g.expand(Rc::new(*state)) {
                             assert!(visited.borrow().contains(&next_state));
                         }
                     }
