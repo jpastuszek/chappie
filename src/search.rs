@@ -2,15 +2,14 @@ use std::iter::Iterator;
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::borrow::Borrow;
-use std::ops::Deref;
 
 pub trait SearchSpace<'a> {
-    type DState: Hash + Eq + Clone;
-    type State: Borrow<Self::DState>;
+    type State: Borrow<Self::DState> + Clone + Hash + Eq;
+    type DState;
     type Action;
     type Iterator: Iterator<Item=(Self::Action, Self::State)>;
 
-    fn expand<S>(&'a self, state: S) -> Self::Iterator where S: Deref<Target=Self::DState>;
+    fn expand(&'a self, state: &Self::DState) -> Self::Iterator;
 
     fn dfs<P>(&'a self, start: Self::State, predicate: P) -> Option<Vec<Self::Action>>
     where P: Fn(&Self::DState) -> bool
@@ -28,7 +27,7 @@ pub trait SearchSpace<'a> {
                 Some(&mut (ref mut iter, _)) => iter.next()
             };
             if let Some((action, state)) = next {
-                if !visited.insert((*state.borrow()).clone()) {
+                if !visited.insert(state.clone()) {
                     continue;
                 }
                 if predicate(state.borrow()) {
@@ -56,9 +55,7 @@ pub mod tests {
     use std::iter::Enumerate;
     use std::cell::RefCell;
     use std::collections::HashSet;
-    use std::ops::Deref;
 
-    /*
     struct RandomGraph {
         nodes: Vec<Vec<usize>>
     }
@@ -91,10 +88,11 @@ pub mod tests {
 
     impl<'a> SearchSpace<'a> for RandomGraph {
         type State = usize;
+        type DState = Self::State;
         type Action = usize;
         type Iterator = Enumerate<IntoIter<usize>>;
 
-        fn expand(&self, state: &Self::State) -> Self::Iterator {
+        fn expand(&'a self, state: &Self::DState) -> Self::Iterator {
             if *state < self.nodes.len() {
                 self.nodes[*state].clone()
             } else {
@@ -102,7 +100,6 @@ pub mod tests {
             }.into_iter().enumerate()
         }
     }
-    */
 
     #[test]
     pub fn test_dfs_simple() {
@@ -112,12 +109,12 @@ pub mod tests {
         enum Dir { Left, Right }
 
         impl<'a> SearchSpace<'a> for TestSearch {
-            type DState = i32;
             type State = i32;
+            type DState = Self::State;
             type Action = Dir;
             type Iterator = IntoIter<(Self::Action, Self::State)>;
 
-            fn expand<S>(&'a self, state: S) -> Self::Iterator where S: Deref<Target=Self::DState> {
+            fn expand(&'a self, state: &Self::DState) -> Self::Iterator {
                 match *state {
                     0 => vec![(Dir::Left, 1), (Dir::Right, 2)],
                     1 => vec![(Dir::Left, 3), (Dir::Right, 4)],
@@ -148,12 +145,12 @@ pub mod tests {
         }
 
         impl<'a> SearchSpace<'a> for TestSearch {
-            type DState = u32;
             type State = &'a u32;
+            type DState = u32;
             type Action = &'a Dir;
             type Iterator = IntoIter<(Self::Action, Self::State)>;
 
-            fn expand<S>(&'a self, state: S) -> Self::Iterator where S: Deref<Target=Self::DState> {
+            fn expand(&'a self, state: &Self::DState) -> Self::Iterator {
                 self.nodes
                     .iter()
                     .nth(*state as usize).unwrap().iter()
@@ -181,7 +178,7 @@ pub mod tests {
         assert_eq!(ts.dfs(&2, |&s| s == 2).unwrap(), Vec::<&Dir>::new());
         assert!(ts.dfs(&2, |&s| s == 0).is_none());
     }
-/*
+
     #[test]
     pub fn test_dfs_random() {
         const N_NODES: usize = 48;
@@ -216,5 +213,4 @@ pub mod tests {
             }
         }
     }
-    */
 }
