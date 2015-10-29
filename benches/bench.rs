@@ -7,6 +7,7 @@ use chappie::search::SearchSpace;
 use test::{Bencher, black_box};
 use std::vec::IntoIter;
 use std::slice::Iter;
+use std::ops::Deref;
 
 enum Dir { Left, Right}
 
@@ -16,11 +17,12 @@ const MAX_DEPTH: u64 = 16;
 const MAX_OFFSET: u64 = 1 << (MAX_DEPTH + 1);
 
 impl<'a> SearchSpace<'a> for BinaryTree {
+    type DState = u64;
     type State = u64;
     type Action = Dir;
     type Iterator = IntoIter<(Self::Action, Self::State)>;
 
-    fn expand(&'a self, state: &Self::State) -> Self::Iterator {
+    fn expand<S>(&'a self, state: S) -> Self::Iterator where S: Deref<Target=Self::DState> {
         let offset = (*state + 2).next_power_of_two();
         if offset >= MAX_OFFSET {
             return vec![].into_iter();
@@ -65,13 +67,14 @@ impl<'a> Iterator for BinaryTreeByRefIter<'a> {
 }
 
 impl<'a> SearchSpace<'a> for BinaryTreeByRef {
+    type DState = u64;
     type State = &'a u64;
     type Action = &'a Dir;
     type Iterator = BinaryTreeByRefIter<'a>;
 
-    fn expand(&'a self, state: &Self::State) -> Self::Iterator {
+    fn expand<S>(&'a self, state: S) -> Self::Iterator where S: Deref<Target=Self::DState> {
         BinaryTreeByRefIter {
-            iter: self.nodes[**state as usize].iter()
+            iter: self.nodes[*state as usize].iter()
         }
     }
 }
