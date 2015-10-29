@@ -5,17 +5,17 @@ use std::borrow::Borrow;
 use std::ops::Deref;
 
 pub trait SearchSpace<'a> {
-    type DState;
-    type State: Hash + Eq + Clone + Borrow<Self::DState>;
+    type DState: Hash + Eq + Clone;
+    type State: Borrow<Self::DState>;
     type Action;
     type Iterator: Iterator<Item=(Self::Action, Self::State)>;
 
     fn expand<S>(&'a self, state: S) -> Self::Iterator where S: Deref<Target=Self::DState>;
 
     fn dfs<P>(&'a self, start: Self::State, predicate: P) -> Option<Vec<Self::Action>>
-    where P: Fn(&Self::State) -> bool
+    where P: Fn(&Self::DState) -> bool
     {
-        if predicate(&start) {
+        if predicate(start.borrow()) {
             return Some(vec![]);
         }
 
@@ -28,10 +28,10 @@ pub trait SearchSpace<'a> {
                 Some(&mut (ref mut iter, _)) => iter.next()
             };
             if let Some((action, state)) = next {
-                if !visited.insert(state.clone()) {
+                if !visited.insert((*state.borrow()).clone()) {
                     continue;
                 }
-                if predicate(&state) {
+                if predicate(state.borrow()) {
                     return Some(
                         stack.into_iter()
                              .filter_map(|(_, a)| a)
@@ -173,13 +173,13 @@ pub mod tests {
             ]
         };
 
-        assert_eq!(ts.dfs(&0, |&s| *s == 0).unwrap(), Vec::<&Dir>::new());
-        assert_eq!(ts.dfs(&0, |&s| *s == 1).unwrap(), vec![&Dir::Left]);
-        assert_eq!(ts.dfs(&0, |&s| *s == 2).unwrap(), vec![&Dir::Right]);
-        assert_eq!(ts.dfs(&0, |&s| *s == 3).unwrap(), vec![&Dir::Left, &Dir::Left]);
-        assert_eq!(ts.dfs(&0, |&s| *s == 4).unwrap(), vec![&Dir::Left, &Dir::Right]);
-        assert_eq!(ts.dfs(&2, |&s| *s == 2).unwrap(), Vec::<&Dir>::new());
-        assert!(ts.dfs(&2, |&s| *s == 0).is_none());
+        assert_eq!(ts.dfs(&0, |&s| s == 0).unwrap(), Vec::<&Dir>::new());
+        assert_eq!(ts.dfs(&0, |&s| s == 1).unwrap(), vec![&Dir::Left]);
+        assert_eq!(ts.dfs(&0, |&s| s == 2).unwrap(), vec![&Dir::Right]);
+        assert_eq!(ts.dfs(&0, |&s| s == 3).unwrap(), vec![&Dir::Left, &Dir::Left]);
+        assert_eq!(ts.dfs(&0, |&s| s == 4).unwrap(), vec![&Dir::Left, &Dir::Right]);
+        assert_eq!(ts.dfs(&2, |&s| s == 2).unwrap(), Vec::<&Dir>::new());
+        assert!(ts.dfs(&2, |&s| s == 0).is_none());
     }
 /*
     #[test]

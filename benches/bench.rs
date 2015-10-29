@@ -89,5 +89,5 @@ fn dfs(b: &mut Bencher) {
 fn dfs_by_ref(b: &mut Bencher) {
     let tree = BinaryTreeByRef::new();
     let start = 0;
-    b.iter(|| { black_box(tree.dfs(&start, |&s| *s == 2)) });
+    b.iter(|| { black_box(tree.dfs(&start, |&s| s == 2)) });
 }
