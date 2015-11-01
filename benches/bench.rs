@@ -8,6 +8,7 @@ use test::{Bencher, black_box};
 use std::vec::IntoIter;
 use std::slice::Iter;
 
+#[derive(PartialEq, Clone)]
 enum Dir { Left, Right}
 
 struct BinaryTree;
@@ -31,12 +32,18 @@ impl<'a> SearchSpace<'a> for BinaryTree {
     }
 }
 
-struct BinaryTreeByRef {
+#[bench]
+fn dfs(b: &mut Bencher) {
+    let tree = BinaryTree;
+    b.iter(|| { black_box(tree.dfs(0, |&s| s == 2)) });
+}
+
+struct BinaryTreeCache {
     nodes: Vec<Vec<(Dir, u64)>>
 }
 
-impl BinaryTreeByRef {
-    fn new() -> BinaryTreeByRef {
+impl BinaryTreeCache {
+    fn new() -> BinaryTreeCache {
         let mut nodes = vec![];
         let tree = BinaryTree;
         let max_nodes: u64 = 2u64.pow((MAX_DEPTH + 1) as u32) - 1;
@@ -45,8 +52,48 @@ impl BinaryTreeByRef {
             nodes.push(tree.expand(&node).collect());
         }
 
-        BinaryTreeByRef { nodes: nodes }
+        BinaryTreeCache { nodes: nodes }
     }
+}
+
+
+struct BinaryTreeByVal {
+        cache: BinaryTreeCache
+}
+
+struct BinaryTreeByValIter<'a> {
+    iter: Iter<'a, (Dir, u64)>
+}
+
+impl<'a> Iterator for BinaryTreeByValIter<'a> {
+    type Item = (Dir, u64);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(&(ref a, ref s)) = self.iter.next() {
+            return Some((a.clone(), s.clone()));
+        }
+        None
+    }
+}
+
+impl<'a> SearchSpace<'a> for BinaryTreeByVal {
+    type State = u64;
+    type Action = Dir;
+    type Iterator = BinaryTreeByValIter<'a>;
+
+    fn expand(&'a self, state: &Self::State) -> Self::Iterator {
+        BinaryTreeByValIter {
+            iter: self.cache.nodes[*state as usize].iter()
+        }
+    }
+}
+
+#[bench]
+fn dfs_by_val(b: &mut Bencher) {
+    let tree = BinaryTreeByVal {
+        cache: BinaryTreeCache::new()
+    };
+    b.iter(|| { black_box(tree.dfs(0, |&s| s == 2)) });
 }
 
 struct BinaryTreeByRefIter<'a> {
@@ -64,6 +111,10 @@ impl<'a> Iterator for BinaryTreeByRefIter<'a> {
     }
 }
 
+struct BinaryTreeByRef {
+        cache: BinaryTreeCache
+}
+
 impl<'a> SearchSpace<'a> for BinaryTreeByRef {
     type State = &'a u64;
     type Action = &'a Dir;
@@ -71,20 +122,16 @@ impl<'a> SearchSpace<'a> for BinaryTreeByRef {
 
     fn expand(&'a self, state: &Self::State) -> Self::Iterator {
         BinaryTreeByRefIter {
-            iter: self.nodes[**state as usize].iter()
+            iter: self.cache.nodes[**state as usize].iter()
         }
     }
 }
 
 #[bench]
-fn dfs(b: &mut Bencher) {
-    let tree = BinaryTree;
-    b.iter(|| { black_box(tree.dfs(0, |&s| s == 2)) });
-}
-
-#[bench]
 fn dfs_by_ref(b: &mut Bencher) {
-    let tree = BinaryTreeByRef::new();
+    let tree = BinaryTreeByRef {
+        cache: BinaryTreeCache::new()
+    };
     let start = 0;
     b.iter(|| { black_box(tree.dfs(&start, |&s| *s == 2)) });
 }
