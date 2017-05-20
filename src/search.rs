@@ -37,12 +37,15 @@ pub trait SearchSpace {
 
     fn dfs<G>(&self, start: &Self::State, goal: &G) -> Option<Vec<Self::Action>>
     where G: SearchGoal<Self::State> {
+        let mut actions = Vec::new();
+
         if goal.is_goal(start) {
-            return Some(Vec::new());
+            return Some(actions);
         }
 
-        let mut actions = Vec::new();
-        self.dfs_iter(&mut actions, &start).find(|ref state| goal.is_goal(state)).map(|_goal| actions)
+        self.dfs_iter(&mut actions, start)
+            .find(|ref state| goal.is_goal(state))
+            .map(|_goal| actions)
     }
 
     fn dfs_iter<'s, 't>(&'s self, actions: &'t mut Vec<Self::Action>, state: &'s Self::State) -> DfsSearchIter<'s, 't, Self> {
@@ -85,8 +88,8 @@ impl<'s, 't, S: ?Sized> Iterator for DfsSearchIter<'s, 't, S> where S: SearchSpa
                 self.actions.push(action);
                 return Some(state)
             } else {
-                self.stack.pop();
                 self.actions.pop();
+                self.stack.pop();
             }
         }
     }
