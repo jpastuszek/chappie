@@ -48,21 +48,21 @@ pub trait SearchSpace {
             .map(|_goal| actions)
     }
 
-    fn dfs_iter<'s, 't>(&'s self, actions: &'t mut Vec<Self::Action>, state: &'s Self::State) -> DfsSearchIter<'s, 't, Self> {
-        DfsSearchIter::new(self, actions, state)
+    fn dfs_iter<'s, 't>(&'s self, actions: &'t mut Vec<Self::Action>, state: &'s Self::State) -> DfsIter<'s, 't, Self> {
+        DfsIter::new(self, actions, state)
     }
 }
 
-pub struct DfsSearchIter<'s, 't, S: ?Sized> where S: SearchSpace + 's, <S as SearchSpace>::Action: 't {
+pub struct DfsIter<'s, 't, S: ?Sized> where S: SearchSpace + 's, <S as SearchSpace>::Action: 't {
     search_space: &'s S,
     stack: Vec<S::Iterator>,
     actions: &'t mut Vec<S::Action>,
     visited: Visited<S::State>
 }
 
-impl<'s, 't, S: ?Sized> DfsSearchIter<'s, 't, S> where S: SearchSpace + 's {
-    fn new(search_space: &'s S, actions: &'t mut Vec<S::Action>, start: &S::State) -> DfsSearchIter<'s, 't, S> {
-        DfsSearchIter {
+impl<'s, 't, S: ?Sized> DfsIter<'s, 't, S> where S: SearchSpace + 's {
+    fn new(search_space: &'s S, actions: &'t mut Vec<S::Action>, start: &S::State) -> DfsIter<'s, 't, S> {
+        DfsIter {
             search_space: search_space,
             stack: vec![search_space.expand(start)],
             actions: actions,
@@ -71,7 +71,7 @@ impl<'s, 't, S: ?Sized> DfsSearchIter<'s, 't, S> where S: SearchSpace + 's {
     }
 }
 
-impl<'s, 't, S: ?Sized> Iterator for DfsSearchIter<'s, 't, S> where S: SearchSpace + 's {
+impl<'s, 't, S: ?Sized> Iterator for DfsIter<'s, 't, S> where S: SearchSpace + 's {
     type Item = S::State;
 
     fn next(&mut self) -> Option<Self::Item> {
