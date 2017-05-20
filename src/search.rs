@@ -38,32 +38,55 @@ pub trait SearchSpace {
     fn dfs<G>(&self, start: &Self::State, goal: &G) -> Option<Vec<Self::Action>>
     where G: SearchGoal<Self::State> {
         if goal.is_goal(start) {
-            return Some(vec![]);
+            return Some(Vec::new());
         }
 
-        let mut visited = Visited::new();
-        let mut stack = vec![(self.expand(start), None)];
+        let mut actions = Vec::new();
+        self.dfs_iter(&mut actions, &start).find(|ref state| goal.is_goal(state)).map(|_goal| actions)
+    }
 
+    fn dfs_iter<'s, 't>(&'s self, actions: &'t mut Vec<Self::Action>, state: &'s Self::State) -> DfsSearchIter<'s, 't, Self> {
+        DfsSearchIter::new(self, actions, state)
+    }
+}
+
+pub struct DfsSearchIter<'s, 't, S: ?Sized> where S: SearchSpace + 's, <S as SearchSpace>::Action: 't {
+    search_space: &'s S,
+    stack: Vec<S::Iterator>,
+    actions: &'t mut Vec<S::Action>,
+    visited: Visited<S::State>
+}
+
+impl<'s, 't, S: ?Sized> DfsSearchIter<'s, 't, S> where S: SearchSpace + 's {
+    fn new(search_space: &'s S, actions: &'t mut Vec<S::Action>, start: &S::State) -> DfsSearchIter<'s, 't, S> {
+        DfsSearchIter {
+            search_space: search_space,
+            stack: vec![search_space.expand(start)],
+            actions: actions,
+            visited: Visited::new()
+        }
+    }
+}
+
+impl<'s, 't, S: ?Sized> Iterator for DfsSearchIter<'s, 't, S> where S: SearchSpace + 's {
+    type Item = S::State;
+
+    fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let next = match stack.last_mut() {
+            let next = match self.stack.last_mut() {
                 None => return None,
-                Some(&mut (ref mut iter, _)) => iter.next()
+                Some(mut iter) => iter.next()
             };
             if let Some((action, state)) = next {
-                if !visited.insert(&state) {
+                if !self.visited.insert(&state) {
                     continue;
                 }
-                if goal.is_goal(&state) {
-                    return Some(
-                        stack.into_iter()
-                             .filter_map(|(_, a)| a)
-                             .chain(Some(action).into_iter())
-                             .collect()
-                    )
-                }
-                stack.push((self.expand(&state), Some(action)));
+                self.stack.push(self.search_space.expand(&state));
+                self.actions.push(action);
+                return Some(state)
             } else {
-                stack.pop();
+                self.stack.pop();
+                self.actions.pop();
             }
         }
     }
@@ -149,6 +172,40 @@ pub mod tests {
     }
 
     #[test]
+    pub fn test_dfs_simple_iter() {
+        struct TestSearch;
+
+        #[derive(Debug, PartialEq)]
+        enum Dir { Left, Right }
+
+        impl SearchSpace for TestSearch {
+            type State = i32;
+            type Action = Dir;
+            type Iterator = IntoIter<(Self::Action, Self::State)>;
+
+            fn expand(&self, state: &Self::State) -> Self::Iterator {
+                match *state {
+                    0 => vec![(Dir::Left, 1), (Dir::Right, 2)],
+                    1 => vec![(Dir::Left, 3), (Dir::Right, 4)],
+                    2 => vec![(Dir::Left, 2)],
+                    _ => vec![]
+                }.into_iter()
+            }
+        }
+
+        let ts = TestSearch;
+        let mut actions = Vec::new();
+        let goal = 0;
+        let mut dfs = ts.dfs_iter(&mut actions, &goal);
+
+        assert_eq!(dfs.next(), Some(1));
+        assert_eq!(dfs.next(), Some(3));
+        assert_eq!(dfs.next(), Some(4));
+        assert_eq!(dfs.next(), Some(2));
+        assert_eq!(dfs.next(), None);
+    }
+
+    #[test]
     pub fn test_dfs_simple() {
         struct TestSearch;
 
@@ -192,8 +249,8 @@ pub mod tests {
         assert!(g.dfs(&N_NODES, &0).is_none());
         assert!(g.dfs(&0, &N_NODES).is_none());
 
-        for start in (0..N_NODES) {
-            for goal in (0..N_NODES) {
+        for start in 0..N_NODES {
+            for goal in 0..N_NODES {
                 let observer = Observer::new(goal);
                 if let Some(path) = g.dfs(&start, &observer) {
                     let mut state = start;
